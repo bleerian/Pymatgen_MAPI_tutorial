@@ -1,0 +1,45 @@
+        -:    0:Source:/work/08844/leebrian/ls6/CSE380/hardcode/final-project-team6/solver/src/unit_test.cpp
+        -:    1:#include "unit_test.h"
+        -:    2:
+       51:    3:test::test(int x_mesh, int y_mesh, bool verbose): xmesh(x_mesh), ymesh(y_mesh), _verbose(verbose) {
+       51:    4:    double k =1;
+       51:    5:    double x;
+       51:    6:    xmesh++;
+       51:    7:    if (ymesh!=1){
+       26:    8:        ymesh++;
+        -:    9:    }
+        -:   10:    // hard code solution and heat vector
+       51:   11:    if(ymesh==1){
+      670:   12:        for (int i=0; i<xmesh; i++){
+      645:   13:            x=i;
+      645:   14:            x=x/(xmesh-1);
+        -:   15:
+      645:   16:            q.push_back(k*M_PI*M_PI*std::sin(M_PI*x));
+      645:   17:            temps.push_back(k*std::sin(M_PI*x));
+        -:   18:        }
+        -:   19:    }else{
+      772:   20:        for (int j=0; j<xmesh; j++){
+      746:   21:            x=j;
+      746:   22:            x=x/(xmesh-1);
+    39492:   23:            for (int i=0; i<ymesh; i++){
+    38746:   24:                double y = i;
+    38746:   25:                y=y/(ymesh-1);
+    38746:   26:                q.push_back(k*5*M_PI*M_PI*std::sin(M_PI*x)*std::sin(2*M_PI*y));
+    38746:   27:                temps.push_back(k*std::sin(M_PI*x)*std::sin(2*M_PI*y));
+        -:   28:            }
+        -:   29:        }
+        -:   30:    }
+       51:   31:}
+       51:   32:void test::compare(std::vector<double> solution){
+       51:   33:    double norm=0;
+       51:   34:    double diff;
+      51*:   35:    assert(solution.size()==temps.size());
+    39442:   36:    for (int i = 0; i <temps.size(); ++i){
+    39391:   37:        diff= (temps[i]-solution[i])*(temps[i]-solution[i]);
+    39391:   38:        norm=norm+diff;
+    39391:   39:        if(_verbose){
+   39391*:   40:            std::cout<<solution[i]<<" <----solution real----> "<<temps[i]<<std::endl;
+        -:   41:        }
+        -:   42:    }
+       51:   43:    std::cout<<"L2 Error: "<<std::sqrt(norm/xmesh)<<std::endl;
+       51:   44:}

@@ -1,0 +1,59 @@
+        -:    0:Source:/work/08844/leebrian/ls6/CSE380/hardcode/final-project-team6/solver/src/main.cpp
+        -:    1:#include "solver.h"
+        -:    2:#include "input_parse.h"
+        -:    3:#include "unit_test.h"
+        -:    4:
+        -:    5:
+        1:    6:void make_test(){
+        4:    7:    for (int solver_type =1; solver_type<4; solver_type++){
+        9:    8:        for (int j=1; j<3; j++){ //order
+        6:    9:            if (solver_type==1 && j>1){
+        1:   10:                continue;
+        -:   11:            }
+        5:   12:            int order=2*j;
+       30:   13:            for (int i =2; i<7; i++){ //mesh size
+       25:   14:                int mesh=std::pow(2,i);
+       25:   15:                std::cout<<" 1d  " <<order<<"  order  "<<"solver_type=="<<solver_type<<"  Mesh size: "<<mesh<<std::endl;
+        -:   16:                // test(int x_mesh, int y_mesh, bool verbose);
+       50:   17:                test unit_test(mesh, 1, false);
+        -:   18:                // solver::solver(int order, int x_mesh, int y_mesh, int solver_type, q vector)
+       25:   19:                solver boo (order, mesh, 1, 3, unit_test.q);
+       50:   20:                std::vector<double> temperatures =boo.solve();
+       25:   21:                unit_test.compare(temperatures);
+        -:   22:
+       25:   23:                std::cout<<" 2d  " <<order<<"  order  "<<"solver_type=="<<solver_type<<"  Mesh size: "<<mesh<<std::endl;
+       50:   24:                test new_unit_test(mesh,mesh, false);
+        -:   25:                // solver::solver(int order, int x_mesh, int y_mesh, int solver_type, q vector)
+       25:   26:                solver new_boo (order, mesh, mesh, solver_type, new_unit_test.q);
+       50:   27:                std::vector<double> new_temps =new_boo.solve();
+       50:   28:                new_unit_test.compare(new_temps);
+        -:   29:            }
+        6:   30:            contin:;
+        -:   31:        }
+        -:   32:    }
+        1:   33:}
+        -:   34:
+        1:   35:int main(int argc, char * argv[]){
+        1:   36:    PetscInitialize(&argc, &argv, NULL, NULL);
+        1:   37:    if (argc>1){
+        2:   38:        if(std::string(argv[1])=="TEST"){make_test();}
+        -:   39:    }
+        -:   40:    // Declaring input variables
+        1:   41:    int order, x_mesh, y_mesh, solver_type;
+        1:   42:    int verification;
+        -:   43:
+        1:   44:    PetscInitialize(&argc, &argv, NULL, NULL);
+        -:   45:    //Calling parse to assign values to input variables
+        1:   46:    parse(order,x_mesh,y_mesh,solver_type,verification);
+        -:   47:
+        -:   48:    // test(int x_mesh, int y_mesh, bool verbose);
+        2:   49:    test unit_testing(x_mesh, y_mesh, false);
+        -:   50:
+        -:   51:    // solver::solver(int order, int x_mesh, int y_mesh, int solver_type, q vector)
+        1:   52:    solver boo (order, x_mesh, y_mesh, solver_type, unit_testing.q);
+        -:   53:
+        2:   54:    std::vector<double> solution= boo.solve();
+        1:   55:    unit_testing.compare(solution);
+        1:   56:    PetscFinalize();
+        1:   57:    return 0;
+        -:   58:};

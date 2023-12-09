@@ -1,0 +1,36 @@
+        -:    0:Source:/work/08844/leebrian/ls6/CSE380/hardcode/final-project-team6/solver/src/input_parse.cpp
+        -:    1:#include"input_parse.h"
+        -:    2:
+        -:    3:GRVY::GRVY_Timer_Class pt; // GRVY Parsing Timer
+        1:    4:int parse(int& order, int& x_mesh, int& y_mesh, int& solver_type, int& verification){
+        1:    5:    pt.Init("Time Parsing");
+        1:    6:    pt.BeginTimer("Parsing Timer");
+        -:    7:
+        1:    8:    GRVY::GRVY_Input_Class iparse; // Input parsing object
+        -:    9:
+        -:   10:    // Initialize/read the file
+        1:   11:    if(! iparse.Open("./input.dat"))
+    #####:   12:    exit(1);
+        -:   13:    // Read specific variables (with no default values provided)
+        1:   14:    if( iparse.Read_Var("order",&order) )
+        1:   15:    printf("--> %s = %i\n","order",order);
+        1:   16:    if( iparse.Read_Var("x_mesh",&x_mesh) )
+        1:   17:    printf("--> %s = %i\n","x_mesh",x_mesh);
+        1:   18:    if( iparse.Read_Var("y_mesh",&y_mesh) )
+        1:   19:    printf("--> %s = %i\n","y_mesh",y_mesh);
+        1:   20:    if( iparse.Read_Var("verification",&verification) )
+        1:   21:    printf("--> %s = %i\n","verfication mode",verification);
+        1:   22:    if( iparse.Read_Var("solver_type",&solver_type) )
+        1:   23:    printf("--> %s = %i\n","solver type",solver_type);
+        -:   24:    
+        -:   25:    // Dump the whole file to a file (appends to file if it already exists)
+        1:   26:    printf("\n ------ Full Dump to test.out ------\n\n");
+        1:   27:    iparse.Fdump("% ","test.out");
+        1:   28:    printf(" ------- End Full Dump -------\n\n");
+        -:   29:    // Close the file
+        1:   30:    iparse.Close();
+        1:   31:    pt.EndTimer("Parsing Timer");
+        1:   32:    pt.Finalize();
+        1:   33:    pt.Summarize();
+        1:   34:    return 0;
+        -:   35:}

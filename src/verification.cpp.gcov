@@ -1,0 +1,32 @@
+        -:    0:Source:/work/08844/leebrian/ls6/CSE380/hardcode/final-project-team6/solver/src/verification.cpp
+        -:    1:#include "verification.h"
+        -:    2:
+    #####:    3:double Temperature(int xmesh, int ymesh, int x, int y) {
+    #####:    4:    if (ymesh == 1) { // 1D case
+        -:    5:        // sol'n that fits the boundary conditions at x = 0 and x = 1
+    #####:    6:        return sin(M_PI * x / xmesh);
+        -:    7:    } else { // 2D case
+        -:    8:        // Asymmetrical 2D polynomial solution
+    #####:    9:        return sin(M_PI * x / xmesh) * sin(2 * M_PI * y / ymesh);
+        -:   10:    }
+        -:   11:}
+        -:   12:
+    #####:   13:double Q(int xmesh, int ymesh, int x, int y, double k){
+    #####:   14:    if (ymesh == 1) { // 1D case
+        -:   15:        // sol'n that fits the boundary conditions at x = 0 and x = 1
+    #####:   16:        return k * M_PI * M_PI * sin(M_PI * x / xmesh);
+        -:   17:    } else { // 2D case
+        -:   18:        // Asymmetrical 2D polynomial solution
+    #####:   19:        return k * M_PI * M_PI * sin(M_PI * x / xmesh) * sin(2 * M_PI * y / ymesh);
+        -:   20:    }
+        -:   21:}
+        -:   22:
+    #####:   23:double l2_norm_1D(const std::vector<double>& numerical, int xmesh, int ymesh) {
+    #####:   24:    double sum = 0.0;
+    #####:   25:    int N = numerical.size();
+    #####:   26:    for (int i = 0; i < N; ++i) {
+    #####:   27:        double diff = Temperature(xmesh, ymesh, i, 0) - numerical[i];
+    #####:   28:        sum += (diff * diff);
+        -:   29:    }
+    #####:   30:    return sqrt(sum / N);
+        -:   31:}

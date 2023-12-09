@@ -1,0 +1,241 @@
+        -:    0:Source:/work/08844/leebrian/ls6/CSE380/hardcode/final-project-team6/solver/src/solver.cpp
+        -:    1:#include "solver.h"
+        -:    2:#include "verification.h"
+        -:    3:#include "output.h"
+        -:    4:// Convenience timer macros for begin/end functions
+        -:    5:#define FUNC_BEGIN_TIMER gt.BeginTimer(__func__);
+        -:    6:#define FUNC_END_TIMER gt.EndTimer (__func__);
+        -:    7:// GRVY Timer object
+        -:    8:GRVY::GRVY_Timer_Class gt; // GRVY Timer
+        -:    9:
+       51:   10:solver::solver(int order, int x_mesh, int y_mesh, int solver_type, std::vector<double> q_vector):
+       51:   11:    _order(order), xmesh(x_mesh), ymesh(y_mesh), _solver_type(solver_type), q_vec(q_vector){
+        -:   12:        // if (order==4){assert(solver_type!=1);}
+      51*:   13:        assert(order==4 || order==2);
+        -:   14:
+        -:   15:        // xmesh++;
+        -:   16:        // if (ymesh!=1){ymesh++;}
+        -:   17:        // n_unknowns=xmesh*ymesh;
+       51:   18:        if(ymesh!=1) { n_unknowns = (xmesh+1)*(ymesh+1);}
+       25:   19:        else { n_unknowns = xmesh + 1;}
+        -:   20:        // for now just setting k and q_val on init
+       51:   21:        k=1;
+       51:   22:        q_val=0;
+        -:   23:        // boundary conditons hard coded below - probably worth changing
+        -:   24:        
+       51:   25:        bc=0;
+       51:   26:}
+       25:   27:void solver::_1D(){
+       25:   28:    FUNC_BEGIN_TIMER
+       25:   29:    PetscInt nnz;
+       25:   30:    double coef; // coefficient outfront
+        -:   31:    // should be done from initialization ?
+       25:   32:    if (_order==2){
+        -:   33:        // number of nonzeros per row
+       15:   34:        nnz=3;
+       15:   35:        coef=-k*(xmesh-1)*(xmesh-1); //coefficent out front for 2nd order
+       10:   36:    }else if(_order==4){
+       10:   37:        nnz=5;
+       10:   38:        coef=-k*(xmesh-1)*(xmesh-1)/12;
+        -:   39:    }
+        -:   40:    // b rhs vector
+       25:   41:    VecCreate(PETSC_COMM_WORLD, &b);
+       25:   42:    VecSetSizes(b,PETSC_DECIDE, n_unknowns);
+       25:   43:    VecSetFromOptions(b);
+        -:   44:
+        -:   45:    // Matrix A
+       25:   46:    MatCreateSeqAIJ(PETSC_COMM_SELF, n_unknowns, n_unknowns, nnz, NULL, &A);
+       25:   47:    MatSetFromOptions(A);
+       25:   48:    MatSetUp(A);
+        -:   49:
+        -:   50:    // boundary conditions T_b(0)
+       25:   51:    MatSetValue(A, 0, 0, 1, INSERT_VALUES); //setting A_00 to 1
+       25:   52:    VecSetValue(b, 0, bc,  INSERT_VALUES); //setting b_0 to the boundary condition
+        -:   53:    // T_b(n)
+       25:   54:    MatSetValue(A, n_unknowns-1,n_unknowns-1, 1, INSERT_VALUES); //setting A_n-1n-1 to 1
+       25:   55:    VecSetValue(b, n_unknowns-1, bc,  INSERT_VALUES); //setting b_n-1 to the boundary condition
+        -:   56:
+        -:   57:    // q vector
+       25:   58:    std::vector<PetscScalar> q(n_unknowns);
+       25:   59:    q=q_vec;
+      620:   60:    for (int i=1; i<n_unknowns-1; i++){
+      595:   61:        PetscInt idx=i;
+      595:   62:        if (nnz==3){ //2nd order
+      357:   63:            const PetscInt cols[]={i-1, i, i+1};
+      357:   64:            const PetscScalar vals[]={coef, -2*coef, coef};
+      357:   65:            MatSetValues(A, 1, &idx, 3 , cols, vals, INSERT_VALUES);
+      238:   66:        }else if (nnz==5 && i!=1 && i!=n_unknowns-2){ //4th order
+      218:   67:            const PetscInt cols[]={i-2, i-1, i, i+1, i+2};
+      218:   68:            const PetscScalar vals[]={-1*coef, 16*coef, -30*coef, 16*coef, -1*coef};
+      218:   69:            MatSetValues(A, 1, &idx, nnz , cols, vals, INSERT_VALUES);
+        -:   70:        }
+       20:   71:        else if (nnz == 5 && i == 1){
+       10:   72:            const PetscInt cols[]={1, 2, 3, 4, 5};
+       10:   73:            const PetscScalar vals[]={12*coef, -48*coef, 72*coef, -48*coef, 12*coef};
+       10:   74:            MatSetValues(A, 1, &idx, nnz , cols, vals, INSERT_VALUES);
+        -:   75:        }
+       10:   76:        else if (nnz ==5 && i == n_unknowns - 2){
+       10:   77:            const PetscInt cols[]={i-4, i-3, i-2, i-1, i};
+       10:   78:            const PetscScalar vals[]={12*coef, -48*coef, 72*coef, -48*coef, 12*coef};
+       10:   79:            MatSetValues(A, 1, &idx, nnz , cols, vals, INSERT_VALUES);
+        -:   80:        }
+        -:   81:        //can be set with all of q vetcor at once instead of in for loop - might save time but idk
+      595:   82:        VecSetValues(b, 1, &idx, &q[i],  INSERT_VALUES);
+        -:   83:    }
+        -:   84:    //SOLVE
+       25:   85:    _setup_solve_destroy(A, b);
+       50:   86:    FUNC_END_TIMER
+        -:   87:    //gt.Summarize();
+       25:   88:}
+        -:   89:
+       26:   90:void solver::_2D(){
+       26:   91:    FUNC_BEGIN_TIMER
+       26:   92:    PetscInt nnz; // number of nonzeros per row
+        -:   93:    // should maybe be done from initialization?
+       26:   94:    if (_order==2){
+        -:   95:        nnz=5;
+       11:   96:    }else if(_order==4){
+       11:   97:        nnz=9;
+        -:   98:    }
+        -:   99:    // b rhs vector
+       26:  100:    VecCreate(PETSC_COMM_WORLD, &b);
+       26:  101:    VecSetSizes(b,PETSC_DECIDE, n_unknowns);
+       26:  102:    VecSetFromOptions(b);
+        -:  103:
+        -:  104:    // Matrix A
+       26:  105:    MatCreateSeqAIJ(PETSC_COMM_SELF, n_unknowns, n_unknowns, nnz, NULL, &A);
+       26:  106:    MatSetFromOptions(A);
+       26:  107:    MatSetUp(A);
+       26:  108:    int total=0;
+       26:  109:    std::vector<PetscScalar> q(n_unknowns);
+       26:  110:    q=q_vec;
+        -:  111:
+        -:  112:    // BOUNDARY CONDITIONS
+      772:  113:    for (int i=0; i<xmesh+1; i++){
+      746:  114:        PetscInt idx=i;
+        -:  115:        //setting T(x,y=0)=bc_0
+      746:  116:        MatSetValue(A, idx, idx, 1, INSERT_VALUES); //setting first xmesh diagonals of A to 1
+      746:  117:        VecSetValue(b, idx, bc,  INSERT_VALUES); //setting bc_0 to the first xmesh entries of b
+        -:  118:        //setting T(x,y=1)=bc_1
+      746:  119:        MatSetValue(A, n_unknowns-idx-1,n_unknowns-idx-1, 1, INSERT_VALUES); //setting last xmesh diagonals of A to 1
+      746:  120:        VecSetValue(b, n_unknowns-1-idx, bc,  INSERT_VALUES); //setting bc_1 to the first xmesh entries of b
+        -:  121:        //setting T(x=0,y) = T(x=1,y)=0
+      746:  122:        if(i!=0 && i!=xmesh){
+      694:  123:            idx=i*(ymesh+1);
+      694:  124:            MatSetValue(A, idx,idx, 1, INSERT_VALUES); //x=0
+      694:  125:            MatSetValue(A, idx+ymesh,idx+ymesh, 1, INSERT_VALUES);//x=1
+      694:  126:            VecSetValue(b, idx, bc, INSERT_VALUES);
+      694:  127:            VecSetValue(b, idx+ymesh,bc, INSERT_VALUES);
+        -:  128:        }
+        -:  129:    }
+       26:  130:    double x_2=(xmesh)*(xmesh);
+       26:  131:    double y_2=(ymesh)*(ymesh);
+    37280:  132:    for (int i=xmesh+1; i<n_unknowns-xmesh-1; i++){
+    37254:  133:        if (i%(ymesh+1)!=0 && (i+1)%(ymesh+1)!=0){ // this if statement forces loop not to overwrite x=0,1 boundary conditions
+    35866:  134:            PetscInt idx=i;
+    35866:  135:            if (nnz==5 || i<=2*(xmesh+1) || i>=n_unknowns-2*(xmesh+1) || i%(ymesh+1)==1 ||i%(ymesh+1)==ymesh-1 ){ //2nd order
+        -:  136:                // 4th uses 2nd order for coeffiecents next to boundary conditions
+    16943:  137:                const PetscInt cols[]={i-xmesh-1,i-1, i, i+1, i+xmesh+1};
+    16943:  138:                const PetscScalar vals[]={-k*y_2, -k*x_2, 2*k*(x_2+y_2), -k*x_2, -k*y_2};
+    16943:  139:                MatSetValues(A, 1, &idx, 5 , cols, vals, INSERT_VALUES);
+    18923:  140:            }else if (nnz==9){ //4th order
+    18923:  141:                const PetscInt cols[]={i-2*(xmesh+1), i-xmesh-1, i-2, i-1, i, i+1, i+2, i+xmesh+1, i+2*(xmesh+1)};
+    18923:  142:                const PetscScalar vals[]={k*y_2/12, -16*k*y_2/12, k*x_2/12, -16*k*x_2/12,
+    18923:  143:                            30*k*(x_2+y_2)/12, -16*k*x_2/12, k*x_2/12, -16*k*y_2/12, k*y_2/12};
+    18923:  144:                MatSetValues(A, 1, &idx, nnz , cols, vals, INSERT_VALUES);
+        -:  145:            }
+        -:  146:            //can be set with all of q vetcor at once instead of in for loop - might save time but idk
+    35866:  147:            VecSetValues(b, 1, &idx, &q[i],  INSERT_VALUES);
+        -:  148:        }
+        -:  149:    }
+        -:  150:    //SOLVE
+       26:  151:    _setup_solve_destroy(A, b);
+       52:  152:    FUNC_END_TIMER
+        -:  153:    //gt.Summarize();
+       26:  154:}
+       51:  155:void solver::_setup_solve_destroy(Mat A, Vec b){
+       51:  156:    FUNC_BEGIN_TIMER
+        -:  157:    // solution vector x
+       51:  158:    VecDuplicate(b, &x);
+        -:  159:
+        -:  160:    //finish set up on matrices
+       51:  161:    MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+       51:  162:    MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+       51:  163:    VecAssemblyBegin(x);
+       51:  164:    VecAssemblyEnd(x);
+       51:  165:    VecAssemblyBegin(b);
+       51:  166:    VecAssemblyEnd(b);
+        -:  167:
+        -:  168:
+        -:  169:    // Displaying the matrices
+       51:  170:    PetscViewer viewer;
+       51:  171:    PetscViewerASCIIOpen(PETSC_COMM_WORLD, "output_A.txt", &viewer);
+       51:  172:    PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_DENSE);
+       51:  173:    MatView(A, viewer);
+       51:  174:    PetscViewerDestroy(&viewer);
+        -:  175:
+       51:  176:    PetscViewerASCIIOpen(PETSC_COMM_WORLD, "output_B.txt", &viewer);
+       51:  177:    PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_DENSE);
+       51:  178:    VecView(b, viewer);
+       51:  179:    PetscViewerDestroy(&viewer);
+        -:  180:
+        -:  181:
+        -:  182:    //creating and setting up the solve
+       51:  183:    KSPCreate(PETSC_COMM_SELF, &ksp);
+       51:  184:    KSPSetOperators(ksp, A, A);
+       51:  185:    KSPSetTolerances(ksp, 1e-20, 1e-20 , PETSC_DEFAULT  , _maxit);
+        -:  186:
+        -:  187:    // will use GMRES solve with ILU preconditioning (petsc default ksp solve)
+        -:  188:    // if solver type not set to 1 or 2
+        -:  189:
+       51:  190:    if(_solver_type==1){ // jacobi
+        5:  191:        KSPSetType(ksp, KSPRICHARDSON);
+        5:  192:        KSPGetPC(ksp, &pc);
+        5:  193:        PCSetType(pc, PCJACOBI);
+       46:  194:    }else if(_solver_type==2){ //gauss siedel
+       11:  195:        KSPSetType(ksp, KSPPREONLY);
+       11:  196:        KSPGetPC(ksp, &pc);
+       11:  197:        PCSetType(pc, PCSOR);
+       11:  198:        PCSORSetIterations(pc, 100, 10);
+        -:  199:    }
+        -:  200:    //solve
+       51:  201:    KSPSolve(ksp, b, x);
+        -:  202:
+       51:  203:    PetscInt size;
+       51:  204:    VecGetSize(x, &size);
+        -:  205:
+       51:  206:    PetscViewerASCIIOpen(PETSC_COMM_WORLD, "output_x.txt", &viewer);
+       51:  207:    PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_DENSE);
+       51:  208:    VecView(x, viewer);
+       51:  209:    PetscViewerDestroy(&viewer);
+        -:  210:
+        -:  211:    //getting solution data in c++ vector
+       51:  212:    std::vector<double> solution_vector(size);
+       51:  213:    PetscScalar* petsc_data;
+       51:  214:    VecGetArray(x, &petsc_data);
+       51:  215:    std::copy(petsc_data, petsc_data + size, solution_vector.begin());
+        -:  216:
+       51:  217:    KSPDestroy(&ksp);
+       51:  218:    MatDestroy(&A);
+       51:  219:    VecDestroy(&b);
+       51:  220:    VecDestroy(&x);
+        -:  221:
+      102:  222:    populate_file(xmesh, ymesh, solution_vector);
+       51:  223:    _temperature = solution_vector;
+      102:  224:    FUNC_END_TIMER
+        -:  225:    //gt.Summarize();
+       51:  226:}
+        -:  227:
+       51:  228:std::vector<double> solver::solve(double tol, int maxit){
+       51:  229:    _tol=tol;
+       51:  230:    _maxit=maxit;
+       51:  231:    if (ymesh==1){
+       25:  232:        _1D();
+        -:  233:    }else{
+      26*:  234:        assert(ymesh>1);
+       26:  235:        _2D();
+        -:  236:    }
+       51:  237:    FUNC_END_TIMER
+       51:  238:    gt.Summarize();
+       51:  239:    return _temperature;
+        -:  240:}

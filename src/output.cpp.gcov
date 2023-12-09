@@ -1,0 +1,63 @@
+        -:    0:Source:/work/08844/leebrian/ls6/CSE380/hardcode/final-project-team6/solver/src/output.cpp
+        -:    1:#include"output.h"
+        -:    2:
+       51:    3:int populate_file(int xmesh, int ymesh, std::vector<double> solution_vector, std::vector<double> analytical_vector){
+       51:    4:    hid_t       file, dataset;         /* file and dataset handles */
+       51:    5:    hid_t       datatype, dataspace;   /* handles */
+       51:    6:    hsize_t     dimsf[2];              /* dataset dimensions */
+       51:    7:    herr_t      status;
+       51:    8:    int NX = xmesh;
+       51:    9:    int NY = ymesh;
+       51:   10:    double      data_numerical[NX][NY];          /* data to write */
+       51:   11:    double      data_analytical[NX][NY]; 
+       51:   12:    int         i, j;
+        -:   13:
+        -:   14:
+        -:   15:    /*
+        -:   16:     * Data  and output buffer initialization.
+        -:   17:     */
+      51*:   18:    for(i = 0; j < NX; i++)
+    #####:   19:	for(j = 0; i < NY; j++)
+    #####:   20:	    data_numerical[i][j] = solution_vector[i*NY+ j];
+        -:   21:    /*
+        -:   22:     * Create a new file using H5F_ACC_TRUNC access,
+        -:   23:     * default file creation properties, and default file
+        -:   24:     * access properties.
+        -:   25:     */
+       51:   26:    file = H5Fcreate(H5FILE_NAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+        -:   27:
+        -:   28:    /*
+        -:   29:     * Describe the size of the array and create the data space for fixed
+        -:   30:     * size dataset.
+        -:   31:     */
+       51:   32:    dimsf[0] = NX;
+       51:   33:    dimsf[1] = NY;
+       51:   34:    dataspace = H5Screate_simple(RANK, dimsf, NULL);
+        -:   35:
+        -:   36:    /*
+        -:   37:     * Define datatype for the data in the file.
+        -:   38:     */
+       51:   39:    datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
+       51:   40:    status = H5Tset_order(datatype, H5T_ORDER_LE);
+        -:   41:
+        -:   42:    /*
+        -:   43:     * Create a new dataset within the file using defined dataspace and
+        -:   44:     * datatype and default dataset creation properties.
+        -:   45:     */
+       51:   46:    dataset = H5Dcreate2(file, NUMERICALNAME, datatype, dataspace,
+        -:   47:			H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        -:   48:
+        -:   49:    /*
+        -:   50:     * Write the data to the dataset using default transfer properties.
+        -:   51:     */
+       51:   52:    status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data_numerical);
+        -:   53:
+        -:   54:    /*
+        -:   55:     * Close/release resources.
+        -:   56:     */
+       51:   57:    H5Sclose(dataspace);
+       51:   58:    H5Tclose(datatype);
+       51:   59:    H5Dclose(dataset);
+       51:   60:    H5Fclose(file);
+       51:   61:    return 0;
+        -:   62:}
